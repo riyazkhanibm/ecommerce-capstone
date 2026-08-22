@@ -9,7 +9,7 @@ spec:
     serviceAccountName: pipeline
   params:
     - name: GIT_URL
-      value: https://github.com/riyazXcode/ecommerce-capstone.git
+      value: https://github.com/riyazkhanibm/ecommerce-capstone.git
     - name: GIT_REVISION
       value: main
     - name: CONTEXT_DIR

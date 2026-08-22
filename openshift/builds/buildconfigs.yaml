@@ -56,7 +56,7 @@ spec:
   source:
     type: Git
     git:
-      uri: https://github.com/riyazXcode/ecommerce-capstone.git
+      uri: https://github.com/riyazkhanibm/ecommerce-capstone.git
       ref: main
     contextDir: services/product-service
   strategy:
@@ -81,7 +81,7 @@ spec:
   source:
     type: Git
     git:
-      uri: https://github.com/riyazXcode/ecommerce-capstone.git
+      uri: https://github.com/riyazkhanibm/ecommerce-capstone.git
       ref: main
     contextDir: services/order-service
   strategy:
@@ -106,7 +106,7 @@ spec:
   source:
     type: Git
     git:
-      uri: https://github.com/riyazXcode/ecommerce-capstone.git
+      uri: https://github.com/riyazkhanibm/ecommerce-capstone.git
       ref: main
     contextDir: services/user-service
   strategy:
@@ -131,7 +131,7 @@ spec:
   source:
     type: Git
     git:
-      uri: https://github.com/riyazXcode/ecommerce-capstone.git
+      uri: https://github.com/riyazkhanibm/ecommerce-capstone.git
       ref: main
     contextDir: frontend
   strategy:
