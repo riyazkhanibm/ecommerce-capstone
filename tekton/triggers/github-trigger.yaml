@@ -1,63 +1,23 @@
 # =============================================================================
-# Step 10 (stretch) — automate pipeline triggering from a GitHub push
+# Path-filtered monorepo triggers
 #
-#   git push
-#     -> GitHub POSTs a JSON payload to the EventListener's Route
-#     -> the EventListener validates the shared secret and the event type
-#     -> the TriggerBinding pulls fields out of the payload
-#     -> the TriggerTemplate stamps out a PipelineRun with those values
+# One repository, four independently deployable components. An unfiltered
+# webhook rebuilds all four on every push -- three Maven builds and a container
+# build for a one-line README change.
 #
-# Apply:  oc apply -f tekton/triggers/github-trigger.yaml
+# Each trigger below carries a CEL interceptor that inspects the changed file
+# paths in the push payload and only fires when THAT component's directory was
+# touched. Push to services/order-service/ and only order-service rebuilds.
 #
-# NOTE on the monorepo: this repository holds three services, so a naive
-# trigger would fire three Maven builds for a one-line frontend change. This
-# setup deliberately wires ONE service (product-service) to demonstrate the
-# mechanism cleanly. The CEL interceptor at the bottom of the EventListener
-# shows how you would branch on changed paths to do it properly.
+# The expression walks body.commits[], because one push can carry several
+# commits, and checks added + modified + removed -- a push that only deletes a
+# file still changes the image.
+#
+#   oc apply -f tekton/triggers/github-trigger.yaml
+#
+# This replaces the earlier single-trigger EventListener in place.
 # =============================================================================
 
-# --- RBAC ---------------------------------------------------------------
-# The EventListener runs as its own ServiceAccount and needs to CREATE
-# PipelineRuns in this namespace. It does NOT need cluster-scoped rights.
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: tekton-triggers-sa
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: tekton-triggers-role
-rules:
-  - apiGroups: ["triggers.tekton.dev"]
-    resources: ["eventlisteners", "triggerbindings", "triggertemplates", "triggers", "interceptors", "clusterinterceptors"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["tekton.dev"]
-    resources: ["pipelineruns", "taskruns"]
-    verbs: ["create", "get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["configmaps", "secrets", "serviceaccounts", "events"]
-    verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: tekton-triggers-binding
-subjects:
-  - kind: ServiceAccount
-    name: tekton-triggers-sa
-roleRef:
-  kind: Role
-  name: tekton-triggers-role
-  apiGroup: rbac.authorization.k8s.io
-
-# --- TriggerBinding -----------------------------------------------------
-# Maps fields out of GitHub's push payload into pipeline parameters.
-# $(body.…) reaches into the JSON GitHub sends.
-#
-# body.ref arrives as "refs/heads/main", so the pipeline gets the full ref
-# and git-clone resolves it -- more robust than string-trimming it here.
 ---
 apiVersion: triggers.tekton.dev/v1beta1
 kind: TriggerBinding
@@ -69,30 +29,23 @@ spec:
       value: $(body.repository.clone_url)
     - name: git-revision
       value: $(body.after)
-    - name: git-repo-name
-      value: $(body.repository.name)
-
-# --- TriggerTemplate ----------------------------------------------------
-# The PipelineRun to create. Note git-revision is the exact commit SHA from
-# the payload, not "main" -- so the image is built from the commit that was
-# actually pushed, even if another push lands while this run is in flight.
 ---
 apiVersion: triggers.tekton.dev/v1beta1
 kind: TriggerTemplate
 metadata:
-  name: capstone-trigger-template
+  name: tt-product-service
 spec:
   params:
     - name: git-repo-url
     - name: git-revision
-    - name: git-repo-name
   resourcetemplates:
     - apiVersion: tekton.dev/v1
       kind: PipelineRun
       metadata:
-        generateName: product-service-auto-
+        generateName: auto-product-service-
         labels:
           triggered-by: github-webhook
+          component: product-service
       spec:
         pipelineRef:
           name: capstone-build-deploy
@@ -117,10 +70,129 @@ spec:
                 resources:
                   requests:
                     storage: 1Gi
-
-# --- EventListener ------------------------------------------------------
-# Creates a pod + Service listening on 8080. Expose it with a Route so
-# GitHub can reach it from the public internet.
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: tt-order-service
+spec:
+  params:
+    - name: git-repo-url
+    - name: git-revision
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        generateName: auto-order-service-
+        labels:
+          triggered-by: github-webhook
+          component: order-service
+      spec:
+        pipelineRef:
+          name: capstone-build-deploy
+        taskRunTemplate:
+          serviceAccountName: pipeline
+        params:
+          - name: GIT_URL
+            value: $(tt.params.git-repo-url)
+          - name: GIT_REVISION
+            value: $(tt.params.git-revision)
+          - name: CONTEXT_DIR
+            value: services/order-service
+          - name: BUILDCONFIG
+            value: order-service
+          - name: DEPLOYMENT_NAME
+            value: order-service
+        workspaces:
+          - name: shared-workspace
+            volumeClaimTemplate:
+              spec:
+                accessModes: ["ReadWriteOnce"]
+                resources:
+                  requests:
+                    storage: 1Gi
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: tt-user-service
+spec:
+  params:
+    - name: git-repo-url
+    - name: git-revision
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        generateName: auto-user-service-
+        labels:
+          triggered-by: github-webhook
+          component: user-service
+      spec:
+        pipelineRef:
+          name: capstone-build-deploy
+        taskRunTemplate:
+          serviceAccountName: pipeline
+        params:
+          - name: GIT_URL
+            value: $(tt.params.git-repo-url)
+          - name: GIT_REVISION
+            value: $(tt.params.git-revision)
+          - name: CONTEXT_DIR
+            value: services/user-service
+          - name: BUILDCONFIG
+            value: user-service
+          - name: DEPLOYMENT_NAME
+            value: user-service
+        workspaces:
+          - name: shared-workspace
+            volumeClaimTemplate:
+              spec:
+                accessModes: ["ReadWriteOnce"]
+                resources:
+                  requests:
+                    storage: 1Gi
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: tt-frontend
+spec:
+  params:
+    - name: git-repo-url
+    - name: git-revision
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        generateName: auto-frontend-
+        labels:
+          triggered-by: github-webhook
+          component: frontend
+      spec:
+        pipelineRef:
+          name: capstone-build-nomaven
+        taskRunTemplate:
+          serviceAccountName: pipeline
+        params:
+          - name: GIT_URL
+            value: $(tt.params.git-repo-url)
+          - name: GIT_REVISION
+            value: $(tt.params.git-revision)
+          - name: CONTEXT_DIR
+            value: frontend
+          - name: BUILDCONFIG
+            value: frontend
+          - name: DEPLOYMENT_NAME
+            value: frontend
+        workspaces:
+          - name: shared-workspace
+            volumeClaimTemplate:
+              spec:
+                accessModes: ["ReadWriteOnce"]
+                resources:
+                  requests:
+                    storage: 1Gi
 ---
 apiVersion: triggers.tekton.dev/v1beta1
 kind: EventListener
@@ -129,11 +201,9 @@ metadata:
 spec:
   serviceAccountName: pipeline
   triggers:
-    - name: github-push
+
+    - name: product-service
       interceptors:
-        # 1. Verify the payload really came from GitHub, using the shared
-        #    secret configured on the webhook. Without this, anyone who
-        #    discovers the Route URL can trigger your pipeline.
         - ref:
             name: github
           params:
@@ -143,14 +213,95 @@ spec:
                 secretKey: secretToken
             - name: eventTypes
               value: ["push"]
-        # 2. Only build pushes to main. Merge-request branches and tag
-        #    pushes are ignored.
         - ref:
             name: cel
           params:
             - name: filter
-              value: "body.ref == 'refs/heads/main'"
+              value: >-
+                body.ref == 'refs/heads/main' &&
+                body.commits.exists(c,
+                  c.added.exists(f, f.startsWith('services/product-service/')) ||
+                  c.modified.exists(f, f.startsWith('services/product-service/')) ||
+                  c.removed.exists(f, f.startsWith('services/product-service/')))
       bindings:
         - ref: github-push-binding
       template:
-        ref: capstone-trigger-template
+        ref: tt-product-service
+
+    - name: order-service
+      interceptors:
+        - ref:
+            name: github
+          params:
+            - name: secretRef
+              value:
+                secretName: github-webhook-secret
+                secretKey: secretToken
+            - name: eventTypes
+              value: ["push"]
+        - ref:
+            name: cel
+          params:
+            - name: filter
+              value: >-
+                body.ref == 'refs/heads/main' &&
+                body.commits.exists(c,
+                  c.added.exists(f, f.startsWith('services/order-service/')) ||
+                  c.modified.exists(f, f.startsWith('services/order-service/')) ||
+                  c.removed.exists(f, f.startsWith('services/order-service/')))
+      bindings:
+        - ref: github-push-binding
+      template:
+        ref: tt-order-service
+
+    - name: user-service
+      interceptors:
+        - ref:
+            name: github
+          params:
+            - name: secretRef
+              value:
+                secretName: github-webhook-secret
+                secretKey: secretToken
+            - name: eventTypes
+              value: ["push"]
+        - ref:
+            name: cel
+          params:
+            - name: filter
+              value: >-
+                body.ref == 'refs/heads/main' &&
+                body.commits.exists(c,
+                  c.added.exists(f, f.startsWith('services/user-service/')) ||
+                  c.modified.exists(f, f.startsWith('services/user-service/')) ||
+                  c.removed.exists(f, f.startsWith('services/user-service/')))
+      bindings:
+        - ref: github-push-binding
+      template:
+        ref: tt-user-service
+
+    - name: frontend
+      interceptors:
+        - ref:
+            name: github
+          params:
+            - name: secretRef
+              value:
+                secretName: github-webhook-secret
+                secretKey: secretToken
+            - name: eventTypes
+              value: ["push"]
+        - ref:
+            name: cel
+          params:
+            - name: filter
+              value: >-
+                body.ref == 'refs/heads/main' &&
+                body.commits.exists(c,
+                  c.added.exists(f, f.startsWith('frontend/')) ||
+                  c.modified.exists(f, f.startsWith('frontend/')) ||
+                  c.removed.exists(f, f.startsWith('frontend/')))
+      bindings:
+        - ref: github-push-binding
+      template:
+        ref: tt-frontend
