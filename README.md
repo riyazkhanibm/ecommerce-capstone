@@ -50,3 +50,4 @@ docker compose up -d --build
 open http://localhost:3000   # or just visit it in a browser
 ```
 Then follow `docs/STEP-BY-STEP.md` for the OpenShift + Tekton path.
+
