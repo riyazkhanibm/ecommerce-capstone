@@ -58,7 +58,6 @@ spec:
     git:
       uri: https://github.com/riyazkhanibm/ecommerce-capstone.git
       ref: main
-    contextDir: services/product-service
   strategy:
     type: Docker
     dockerStrategy:
@@ -83,7 +82,6 @@ spec:
     git:
       uri: https://github.com/riyazkhanibm/ecommerce-capstone.git
       ref: main
-    contextDir: services/order-service
   strategy:
     type: Docker
     dockerStrategy:
@@ -108,7 +106,6 @@ spec:
     git:
       uri: https://github.com/riyazkhanibm/ecommerce-capstone.git
       ref: main
-    contextDir: services/user-service
   strategy:
     type: Docker
     dockerStrategy:
@@ -133,7 +130,6 @@ spec:
     git:
       uri: https://github.com/riyazkhanibm/ecommerce-capstone.git
       ref: main
-    contextDir: frontend
   strategy:
     type: Docker
     dockerStrategy:
