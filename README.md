@@ -263,12 +263,11 @@ A push touching only `frontend/` runs the three-stage no-Maven pipeline:
 | 08 | Databases running | **database** |
 | 09 | Images in OCR | **OpenShift Container Registry** |
 | 10 | All pods running | **OpenShift cluster** |
-| 11 | API flow via Routes | **microservices** |
-| 12 | Browser end to end | **browser verification** |
-| 13 | PipelineRun succeeded | **Tekton pipeline** |
-| 14 | All three PipelineRuns | **Tekton pipeline** |
-| 15 | Webhook configured | stretch goal |
-| 16 | Path-filtered trigger | stretch goal |
+| 11 | Browser end to end | **browser verification** |
+| 12 | PipelineRun succeeded | **Tekton pipeline** |
+| 13 | All three PipelineRuns | **Tekton pipeline** |
+| 14 | Webhook configured | stretch goal |
+| 15 | Path-filtered trigger | stretch goal |
 
 ---
 
