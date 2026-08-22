@@ -183,6 +183,17 @@ Seven application pods, four Services, four TLS-terminated Routes:
 
 ![All pods running](evidence/10-openshift-all-pods-running.png)
 
+Live endpoints:
+
+| Component | URL |
+|---|---|
+| Frontend | https://frontend-riyazkhan03-dev.apps.rm1.0a51.p1.openshiftapps.com |
+| product-service | https://product-service-riyazkhan03-dev.apps.rm1.0a51.p1.openshiftapps.com |
+| order-service | https://order-service-riyazkhan03-dev.apps.rm1.0a51.p1.openshiftapps.com |
+| user-service | https://user-service-riyazkhan03-dev.apps.rm1.0a51.p1.openshiftapps.com |
+
+The three service URLs are entered into the endpoint fields at the top of the frontend page.
+
 ### 5. Verification through the Routes
 
 ![API flow via Routes](evidence/11-openshift-api-flow-via-routes.png)
