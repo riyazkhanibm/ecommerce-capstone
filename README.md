@@ -118,6 +118,7 @@ curl -s localhost:8081/api/products/1     # stockQuantity has dropped by 2
 
 ![Local API flow](evidence/04-local-api-flow-register-login-order.png)
 
+
 Browser at `http://<host>:3000`, with the three service URLs entered in the endpoint
 fields at the top of the page:
 
