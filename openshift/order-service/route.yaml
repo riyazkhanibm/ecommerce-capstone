@@ -1,0 +1,13 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: order-service
+spec:
+  to:
+    kind: Service
+    name: order-service
+  port:
+    targetPort: 8082
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

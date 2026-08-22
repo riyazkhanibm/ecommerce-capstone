@@ -1,0 +1,23 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: frontend-build-
+spec:
+  pipelineRef:
+    name: capstone-build-deploy-frontend
+  serviceAccountName: pipeline-sa
+  params:
+    - name: GIT_URL
+      value: https://github.com/<your-github-username>/ecommerce-capstone.git
+    - name: GIT_REVISION
+      value: main
+    - name: CONTEXT_DIR
+      value: frontend
+    - name: IMAGE
+      value: image-registry.openshift-image-registry.svc:5000/ecommerce-capstone/frontend:latest
+    - name: DEPLOYMENT_NAME
+      value: frontend
+  workspaces:
+    - name: shared-workspace
+      persistentVolumeClaim:
+        claimName: capstone-pipeline-pvc

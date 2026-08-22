@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Capstone E-Commerce Demo</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; padding: 0 15px; }
+  h1 { color: #2c3e50; }
+  section { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+  h2 { margin-top: 0; font-size: 1.1em; color: #34495e; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; }
+  input, select { padding: 6px; margin: 4px 4px 4px 0; }
+  button { padding: 6px 14px; background: #2980b9; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  button:hover { background: #1f618d; }
+  pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; }
+  .row { margin-bottom: 8px; }
+  .config { font-size: 0.85em; color: #666; }
+</style>
+</head>
+<body>
+<h1>Capstone E-Commerce Demo</h1>
+<p class="config">Configure the base URLs below to point at your local services or your OpenShift Routes.</p>
+
+<section>
+  <h2>0. Service Endpoints</h2>
+  <div class="row">Product Service: <input id="productUrl" size="45" value="http://18.224.6.0:8081"></div>
+  <div class="row">Order Service: <input id="orderUrl" size="45" value="http://18.224.6.0:8082"></div>
+  <div class="row">User Service: <input id="userUrl" size="45" value="http://18.224.6.0:8083"></div>
+</section>
+
+<section>
+  <h2>1. Register / Login</h2>
+  <div class="row">
+    <input id="regName" placeholder="Full name">
+    <input id="regEmail" placeholder="Email">
+    <input id="regPassword" placeholder="Password" type="password">
+    <button onclick="register()">Register</button>
+    <button onclick="login()">Login</button>
+  </div>
+  <pre id="authResult">No token yet.</pre>
+</section>
+
+<section>
+  <h2>2. Products</h2>
+  <button onclick="loadProducts()">Refresh Products</button>
+  <table id="productTable">
+    <thead><tr><th>ID</th><th>Name</th><th>Price</th><th>Stock</th><th>Category</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>3. Place an Order</h2>
+  <div class="row">
+    Customer name: <input id="orderCustomer" placeholder="Jane Doe">
+  </div>
+  <div class="row">
+    Product ID: <input id="orderProductId" size="5">
+    Quantity: <input id="orderQty" size="5" value="1">
+    <button onclick="placeOrder()">Place Order</button>
+  </div>
+  <pre id="orderResult">No order placed yet.</pre>
+</section>
+
+<section>
+  <h2>4. Orders</h2>
+  <button onclick="loadOrders()">Refresh Orders</button>
+  <table id="orderTable">
+    <thead><tr><th>ID</th><th>Customer</th><th>Status</th><th>Total</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<script>
+function urls() {
+  return {
+    product: document.getElementById('productUrl').value.replace(/\/$/, ''),
+    order: document.getElementById('orderUrl').value.replace(/\/$/, ''),
+    user: document.getElementById('userUrl').value.replace(/\/$/, '')
+  };
+}
+
+async function register() {
+  const { user } = urls();
+  const body = {
+    fullName: document.getElementById('regName').value,
+    email: document.getElementById('regEmail').value,
+    password: document.getElementById('regPassword').value
+  };
+  const res = await fetch(`${user}/api/auth/register`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  document.getElementById('authResult').textContent = JSON.stringify(await res.json(), null, 2);
+}
+
+async function login() {
+  const { user } = urls();
+  const body = {
+    email: document.getElementById('regEmail').value,
+    password: document.getElementById('regPassword').value
+  };
+  const res = await fetch(`${user}/api/auth/login`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  document.getElementById('authResult').textContent = JSON.stringify(await res.json(), null, 2);
+}
+
+async function loadProducts() {
+  const { product } = urls();
+  const res = await fetch(`${product}/api/products`);
+  const data = await res.json();
+  const tbody = document.querySelector('#productTable tbody');
+  tbody.innerHTML = '';
+  data.forEach(p => {
+    tbody.innerHTML += `<tr><td>${p.id}</td><td>${p.name}</td><td>$${p.price}</td><td>${p.stockQuantity}</td><td>${p.category ?? ''}</td></tr>`;
+  });
+}
+
+async function placeOrder() {
+  const { order } = urls();
+  const body = {
+    customerName: document.getElementById('orderCustomer').value,
+    items: [{
+      productId: Number(document.getElementById('orderProductId').value),
+      quantity: Number(document.getElementById('orderQty').value)
+    }]
+  };
+  const res = await fetch(`${order}/api/orders`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  document.getElementById('orderResult').textContent = JSON.stringify(await res.json(), null, 2);
+  loadOrders();
+  loadProducts();
+}
+
+async function loadOrders() {
+  const { order } = urls();
+  const res = await fetch(`${order}/api/orders`);
+  const data = await res.json();
+  const tbody = document.querySelector('#orderTable tbody');
+  tbody.innerHTML = '';
+  data.forEach(o => {
+    tbody.innerHTML += `<tr><td>${o.id}</td><td>${o.customerName}</td><td>${o.status}</td><td>$${o.totalAmount}</td></tr>`;
+  });
+}
+
+loadProducts();
+loadOrders();
+</script>
+</body>
+</html>

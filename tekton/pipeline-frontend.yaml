@@ -1,0 +1,62 @@
+# Simpler pipeline for the frontend: no Maven stage, just clone -> build image -> deploy.
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: capstone-build-deploy-frontend
+spec:
+  params:
+    - name: GIT_URL
+      type: string
+    - name: GIT_REVISION
+      type: string
+      default: main
+    - name: CONTEXT_DIR
+      type: string
+      default: frontend
+    - name: IMAGE
+      type: string
+    - name: DEPLOYMENT_NAME
+      type: string
+      default: frontend
+  workspaces:
+    - name: shared-workspace
+  tasks:
+    - name: fetch-source
+      taskRef:
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+      params:
+        - name: url
+          value: $(params.GIT_URL)
+        - name: revision
+          value: $(params.GIT_REVISION)
+
+    - name: build-and-push
+      taskRef:
+        name: buildah
+      runAfter: ["fetch-source"]
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE)
+        - name: CONTEXT
+          value: $(params.CONTEXT_DIR)
+        - name: TLSVERIFY
+          value: "false"
+
+    - name: deploy
+      taskRef:
+        name: openshift-client
+      runAfter: ["build-and-push"]
+      workspaces:
+        - name: manifest-dir
+          workspace: shared-workspace
+      params:
+        - name: SCRIPT
+          value: |
+            oc rollout restart deployment/$(params.DEPLOYMENT_NAME)
+            oc rollout status deployment/$(params.DEPLOYMENT_NAME) --timeout=180s

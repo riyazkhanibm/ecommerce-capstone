@@ -1,0 +1,26 @@
+# Custom Task: runs 'mvn clean package' against one microservice's pom.xml.
+# This is the explicit "Maven build" pipeline stage requested for the capstone
+# rubric — it runs unit tests and fails the pipeline fast before we ever
+# spend time on an image build.
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: maven-build
+spec:
+  params:
+    - name: CONTEXT_DIR
+      description: Path (relative to workspace root) to the microservice's pom.xml
+      type: string
+  workspaces:
+    - name: source
+  steps:
+    - name: mvn-clean-package
+      image: maven:3.9-eclipse-temurin-17
+      workingDir: $(workspaces.source.path)/$(params.CONTEXT_DIR)
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "Building and testing $(params.CONTEXT_DIR) ..."
+        mvn -B clean package
+        echo "Maven build complete. Artifact:"
+        ls -lh target/*.jar

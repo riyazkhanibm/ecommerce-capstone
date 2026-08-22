@@ -1,0 +1,83 @@
+# Main CI/CD pipeline, reused for product-service, order-service, and
+# user-service (each gets its own PipelineRun with different params — see
+# pipelinerun-*.yaml). Stages:
+#   1. fetch-source   -> git-clone (installed from Tekton Hub)
+#   2. maven-build    -> custom Task, mvn clean package (unit tests run here)
+#   3. build-and-push -> buildah (installed from Tekton Hub), builds the
+#                         Dockerfile and pushes to the OpenShift internal
+#                         registry (OCR)
+#   4. deploy         -> openshift-client (installed from Tekton Hub),
+#                         triggers a rollout of the Deployment with the new image
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: capstone-build-deploy
+spec:
+  params:
+    - name: GIT_URL
+      type: string
+    - name: GIT_REVISION
+      type: string
+      default: main
+    - name: CONTEXT_DIR
+      description: Subdirectory of the repo containing this microservice, e.g. services/product-service
+      type: string
+    - name: IMAGE
+      description: Full internal-registry image reference to push, e.g. image-registry.openshift-image-registry.svc:5000/ecommerce-capstone/product-service:latest
+      type: string
+    - name: DEPLOYMENT_NAME
+      description: Name of the Deployment object to roll out after a successful push
+      type: string
+  workspaces:
+    - name: shared-workspace
+  tasks:
+    - name: fetch-source
+      taskRef:
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+      params:
+        - name: url
+          value: $(params.GIT_URL)
+        - name: revision
+          value: $(params.GIT_REVISION)
+
+    - name: maven-build
+      taskRef:
+        name: maven-build
+      runAfter: ["fetch-source"]
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      params:
+        - name: CONTEXT_DIR
+          value: $(params.CONTEXT_DIR)
+
+    - name: build-and-push
+      taskRef:
+        name: buildah
+      runAfter: ["maven-build"]
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE)
+        - name: CONTEXT
+          value: $(params.CONTEXT_DIR)
+        - name: TLSVERIFY
+          value: "false"
+
+    - name: deploy
+      taskRef:
+        name: openshift-client
+      runAfter: ["build-and-push"]
+      workspaces:
+        - name: manifest-dir
+          workspace: shared-workspace
+      params:
+        - name: SCRIPT
+          value: |
+            oc rollout restart deployment/$(params.DEPLOYMENT_NAME)
+            oc rollout status deployment/$(params.DEPLOYMENT_NAME) --timeout=180s

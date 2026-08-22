@@ -1,0 +1,11 @@
+# Shared workspace PVC used by the pipeline to pass source code between tasks.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: capstone-pipeline-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
