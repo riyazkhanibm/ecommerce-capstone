@@ -5,19 +5,24 @@ metadata:
 spec:
   pipelineRef:
     name: capstone-build-deploy
-  serviceAccountName: pipeline-sa
+  taskRunTemplate:
+    serviceAccountName: pipeline
   params:
     - name: GIT_URL
-      value: https://github.com/<your-github-username>/ecommerce-capstone.git
+      value: https://github.com/riyazXcode/ecommerce-capstone.git
     - name: GIT_REVISION
       value: main
     - name: CONTEXT_DIR
       value: services/product-service
-    - name: IMAGE
-      value: image-registry.openshift-image-registry.svc:5000/riyazkhan03-dev/product-service:latest
+    - name: BUILDCONFIG
+      value: product-service
     - name: DEPLOYMENT_NAME
       value: product-service
   workspaces:
     - name: shared-workspace
-      persistentVolumeClaim:
-        claimName: capstone-pipeline-pvc
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi

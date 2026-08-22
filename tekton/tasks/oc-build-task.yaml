@@ -1,0 +1,58 @@
+# =============================================================================
+# Task: oc-build
+#
+# Drop-in replacement for the Tekton `buildah` Task on clusters where the
+# pipeline ServiceAccount cannot use the `privileged` SCC.
+#
+# buildah builds the image inside the pipeline pod (privileged). This Task
+# instead asks OpenShift to run its own BuildConfig, which the platform's build
+# controller executes in a separate, properly-isolated build pod. The image
+# lands in the internal registry exactly as before.
+#
+# --from-dir uploads the workspace the pipeline already cloned, so the build
+# uses the exact commit git-clone fetched — not whatever happens to be on the
+# branch tip when the build starts. That matters: without it, a push landing
+# mid-pipeline would silently produce an image from different source than the
+# one the maven-build stage tested.
+# =============================================================================
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: oc-build
+spec:
+  params:
+    - name: BUILDCONFIG
+      description: Name of the BuildConfig to start (e.g. product-service)
+      type: string
+    - name: CONTEXT_DIR
+      description: Path within the workspace holding the Dockerfile
+      type: string
+  workspaces:
+    - name: source
+  results:
+    - name: image-digest
+      description: Digest of the image the build produced
+  steps:
+    - name: start-build
+      image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        BC="$(params.BUILDCONFIG)"
+        DIR="$(params.CONTEXT_DIR)"
+
+        echo "==> Starting OpenShift build for ${BC} from ${DIR}"
+        test -f "${DIR}/Dockerfile" || { echo "No Dockerfile in ${DIR}"; exit 1; }
+
+        # --wait blocks until the build finishes and returns non-zero on failure,
+        # so a broken build fails this Task rather than silently passing.
+        oc start-build "${BC}" \
+          --from-dir="${DIR}" \
+          --follow \
+          --wait
+
+        DIGEST=$(oc get istag "${BC}:latest" -o jsonpath='{.image.metadata.name}')
+        echo -n "${DIGEST}" > "$(results.image-digest.path)"
+        echo "==> Built ${BC}:latest  digest=${DIGEST}"

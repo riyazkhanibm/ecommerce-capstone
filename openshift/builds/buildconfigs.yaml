@@ -1,0 +1,147 @@
+# =============================================================================
+# BuildConfigs + ImageStreams — Developer Sandbox adaptation
+#
+# The upstream pipeline used the Tekton `buildah` Task to build images. buildah
+# runs the container build INSIDE the pipeline pod, which needs the `privileged`
+# SCC. On a namespace-scoped account that is denied:
+#
+#     $ oc auth can-i use scc/privileged
+#     no
+#
+# OpenShift's own BuildConfig delegates the build to the platform's build
+# controller, which already holds those privileges and runs it in an isolated
+# build pod. Same output — an image in the internal registry (OCR) — with no
+# privilege escalation for the pipeline. On a real multi-tenant cluster this is
+# the correct pattern, not a workaround.
+#
+# Strategy is `docker`, so each service's existing multi-stage Dockerfile is
+# used verbatim: Maven compiles in stage 1, the JRE runtime image ships in
+# stage 2. Nothing about the application changes.
+#
+#   oc apply -f openshift/builds/buildconfigs.yaml
+# =============================================================================
+
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: product-service
+  labels: { app: product-service }
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: order-service
+  labels: { app: order-service }
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: user-service
+  labels: { app: user-service }
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: frontend
+  labels: { app: frontend }
+
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: product-service
+  labels: { app: product-service }
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/riyazXcode/ecommerce-capstone.git
+      ref: main
+    contextDir: services/product-service
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: product-service:latest
+  resources:
+    requests: { cpu: 200m, memory: 1Gi }
+    limits:   { cpu: 1,    memory: 2Gi }
+
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: order-service
+  labels: { app: order-service }
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/riyazXcode/ecommerce-capstone.git
+      ref: main
+    contextDir: services/order-service
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: order-service:latest
+  resources:
+    requests: { cpu: 200m, memory: 1Gi }
+    limits:   { cpu: 1,    memory: 2Gi }
+
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: user-service
+  labels: { app: user-service }
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/riyazXcode/ecommerce-capstone.git
+      ref: main
+    contextDir: services/user-service
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: user-service:latest
+  resources:
+    requests: { cpu: 200m, memory: 1Gi }
+    limits:   { cpu: 1,    memory: 2Gi }
+
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: frontend
+  labels: { app: frontend }
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/riyazXcode/ecommerce-capstone.git
+      ref: main
+    contextDir: frontend
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: frontend:latest
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 512Mi }

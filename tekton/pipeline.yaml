@@ -1,13 +1,18 @@
-# Main CI/CD pipeline, reused for product-service, order-service, and
-# user-service (each gets its own PipelineRun with different params — see
-# pipelinerun-*.yaml). Stages:
-#   1. fetch-source   -> git-clone (installed from Tekton Hub)
-#   2. maven-build    -> custom Task, mvn clean package (unit tests run here)
-#   3. build-and-push -> buildah (installed from Tekton Hub), builds the
-#                         Dockerfile and pushes to the OpenShift internal
-#                         registry (OCR)
-#   4. deploy         -> openshift-client (installed from Tekton Hub),
-#                         triggers a rollout of the Deployment with the new image
+# =============================================================================
+# capstone-build-deploy — Developer Sandbox variant
+#
+# Stages:
+#   1. fetch-source   git-clone (Tekton Hub)
+#   2. maven-build    mvn clean package WITH tests — fails fast before we spend
+#                     four minutes on an image build
+#   3. build-and-push oc-build (was: buildah) — starts the service's BuildConfig,
+#                     which pushes to the OpenShift internal registry (OCR)
+#   4. deploy         openshift-client — rolls out the Deployment
+#
+# Only stage 3 differs from the upstream pipeline. buildah needs the privileged
+# SCC, which a namespace-scoped account is denied; BuildConfigs delegate the
+# build to the platform instead.
+# =============================================================================
 apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
@@ -20,13 +25,13 @@ spec:
       type: string
       default: main
     - name: CONTEXT_DIR
-      description: Subdirectory of the repo containing this microservice, e.g. services/product-service
+      description: Subdirectory holding this microservice, e.g. services/product-service
       type: string
-    - name: IMAGE
-      description: Full internal-registry image reference to push, e.g. image-registry.openshift-image-registry.svc:5000/riyazkhan03-dev/product-service:latest
+    - name: BUILDCONFIG
+      description: BuildConfig to start, e.g. product-service
       type: string
     - name: DEPLOYMENT_NAME
-      description: Name of the Deployment object to roll out after a successful push
+      description: Deployment to roll out after a successful push
       type: string
   workspaces:
     - name: shared-workspace
@@ -56,28 +61,23 @@ spec:
 
     - name: build-and-push
       taskRef:
-        name: buildah
+        name: oc-build
       runAfter: ["maven-build"]
       workspaces:
         - name: source
           workspace: shared-workspace
       params:
-        - name: IMAGE
-          value: $(params.IMAGE)
-        - name: CONTEXT
+        - name: BUILDCONFIG
+          value: $(params.BUILDCONFIG)
+        - name: CONTEXT_DIR
           value: $(params.CONTEXT_DIR)
-        - name: TLSVERIFY
-          value: "false"
 
     - name: deploy
       taskRef:
         name: openshift-client
       runAfter: ["build-and-push"]
-      workspaces:
-        - name: manifest-dir
-          workspace: shared-workspace
       params:
         - name: SCRIPT
           value: |
             oc rollout restart deployment/$(params.DEPLOYMENT_NAME)
-            oc rollout status deployment/$(params.DEPLOYMENT_NAME) --timeout=180s
+            oc rollout status deployment/$(params.DEPLOYMENT_NAME) --timeout=300s
