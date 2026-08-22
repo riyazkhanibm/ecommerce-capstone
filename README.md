@@ -194,7 +194,7 @@ The three service URLs are entered into the endpoint fields at the top of the fr
 
 ### 5. Verification through the Routes
 
-![API flow via Routes](evidence/11-openshift-api-flow-via-routes.png)
+![API flow via Routes](evidence/04-local-api-flow-register-login-order.png)
 
 End-to-end order placed in a real browser, through the cluster:
 
