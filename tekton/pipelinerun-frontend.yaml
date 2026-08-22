@@ -14,7 +14,7 @@ spec:
     - name: CONTEXT_DIR
       value: frontend
     - name: IMAGE
-      value: image-registry.openshift-image-registry.svc:5000/ecommerce-capstone/frontend:latest
+      value: image-registry.openshift-image-registry.svc:5000/riyazkhan03-dev/frontend:latest
     - name: DEPLOYMENT_NAME
       value: frontend
   workspaces:

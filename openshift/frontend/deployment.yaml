@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: image-registry.openshift-image-registry.svc:5000/ecommerce-capstone/frontend:latest
+          image: image-registry.openshift-image-registry.svc:5000/riyazkhan03-dev/frontend:latest
           ports:
             - containerPort: 8080
           resources:

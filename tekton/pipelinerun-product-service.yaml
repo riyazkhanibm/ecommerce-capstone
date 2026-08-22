@@ -14,7 +14,7 @@ spec:
     - name: CONTEXT_DIR
       value: services/product-service
     - name: IMAGE
-      value: image-registry.openshift-image-registry.svc:5000/ecommerce-capstone/product-service:latest
+      value: image-registry.openshift-image-registry.svc:5000/riyazkhan03-dev/product-service:latest
     - name: DEPLOYMENT_NAME
       value: product-service
   workspaces:

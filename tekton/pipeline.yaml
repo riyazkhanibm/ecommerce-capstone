@@ -23,7 +23,7 @@ spec:
       description: Subdirectory of the repo containing this microservice, e.g. services/product-service
       type: string
     - name: IMAGE
-      description: Full internal-registry image reference to push, e.g. image-registry.openshift-image-registry.svc:5000/ecommerce-capstone/product-service:latest
+      description: Full internal-registry image reference to push, e.g. image-registry.openshift-image-registry.svc:5000/riyazkhan03-dev/product-service:latest
       type: string
     - name: DEPLOYMENT_NAME
       description: Name of the Deployment object to roll out after a successful push

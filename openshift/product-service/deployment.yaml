@@ -5,7 +5,7 @@ metadata:
   labels:
     app: product-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: product-service
@@ -18,7 +18,7 @@ spec:
         - name: product-service
           # Replace with your OpenShift internal registry path after Tekton builds & pushes the image:
           # image-registry.openshift-image-registry.svc:5000/<project>/product-service:latest
-          image: image-registry.openshift-image-registry.svc:5000/ecommerce-capstone/product-service:latest
+          image: image-registry.openshift-image-registry.svc:5000/riyazkhan03-dev/product-service:latest
           ports:
             - containerPort: 8081
           env:

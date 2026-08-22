@@ -5,7 +5,7 @@ metadata:
   labels:
     app: order-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: order-service
@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: order-service
-          image: image-registry.openshift-image-registry.svc:5000/ecommerce-capstone/order-service:latest
+          image: image-registry.openshift-image-registry.svc:5000/riyazkhan03-dev/order-service:latest
           ports:
             - containerPort: 8082
           env:
