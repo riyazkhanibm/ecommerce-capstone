@@ -10,3 +10,4 @@ COPY --from=build /build/target/user-service.jar /deployments/app.jar
 EXPOSE 8083
 RUN chgrp -R 0 /deployments && chmod -R g=u /deployments
 ENTRYPOINT ["java", "-jar", "/deployments/app.jar"]
+
